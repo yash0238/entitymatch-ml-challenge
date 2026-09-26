@@ -212,8 +212,7 @@ This project is for the Amazon ML Challenge 2026. Code is MIT licensed.
 
 ## Authors
 
-[Your Team Name]  
-[Team Members]
+Yashovardhan Thopte
 
 ---
 
