@@ -177,7 +177,7 @@ def main():
     if len(sys.argv) > 1:
         data_dir = sys.argv[1]
     else:
-        data_dir = '../data'
+        data_dir = 'data'  # Changed from ../data
     
     profiler = DataProfiler(data_dir)
     profiler.run_full_profiling()

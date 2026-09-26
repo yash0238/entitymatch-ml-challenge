@@ -149,7 +149,9 @@ class TextNormalizer:
         Returns:
             List of numeric strings
         """
-        return re.findall(r'\b\d+\b', text)
+        if pd.isna(text):
+            return []
+        return re.findall(r'\b\d+\b', str(text))
 
 
 def preprocess_dataframe(df: pd.DataFrame) -> pd.DataFrame:

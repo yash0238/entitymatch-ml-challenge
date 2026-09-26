@@ -232,3 +232,192 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+class AdvancedFeatureExtractor(FeatureExtractor):
+    """
+    Extended feature extractor with advanced blocking and similarity features
+    Based on your friend's advice: focus on blocking keys + matching model
+    """
+    
+    @staticmethod
+    def n_gram_similarity(s1: str, s2: str, n: int = 2) -> float:
+        """N-gram based similarity"""
+        if not s1 or not s2:
+            return 0.0
+        
+        def get_ngrams(s, n):
+            return set([s[i:i+n] for i in range(len(s)-n+1)])
+        
+        ngrams1 = get_ngrams(s1, n)
+        ngrams2 = get_ngrams(s2, n)
+        
+        if not ngrams1 or not ngrams2:
+            return 0.0
+        
+        intersection = len(ngrams1 & ngrams2)
+        union = len(ngrams1 | ngrams2)
+        return intersection / union if union > 0 else 0.0
+    
+    @staticmethod
+    def longest_common_substring_ratio(s1: str, s2: str) -> float:
+        """Ratio of longest common substring to average length"""
+        if not s1 or not s2:
+            return 0.0
+        
+        m, n = len(s1), len(s2)
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        max_len = 0
+        
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if s1[i-1] == s2[j-1]:
+                    dp[i][j] = dp[i-1][j-1] + 1
+                    max_len = max(max_len, dp[i][j])
+        
+        avg_len = (len(s1) + len(s2)) / 2
+        return max_len / avg_len if avg_len > 0 else 0.0
+    
+    @staticmethod
+    def word_order_similarity(s1: str, s2: str) -> float:
+        """Check if words appear in similar order"""
+        if not s1 or not s2:
+            return 0.0
+        
+        words1 = s1.lower().split()
+        words2 = s2.lower().split()
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        common_words = set(words1) & set(words2)
+        if not common_words:
+            return 0.0
+        
+        # Get positions of common words
+        pos1 = [i for i, w in enumerate(words1) if w in common_words]
+        pos2 = [i for i, w in enumerate(words2) if w in common_words]
+        
+        # Normalized position correlation
+        if len(pos1) <= 1:
+            return 1.0
+        
+        # Check if relative order is preserved
+        order_preserved = sum(1 for i in range(len(pos1)-1) 
+                             if pos1[i] < pos1[i+1]) / (len(pos1) - 1)
+        
+        return order_preserved
+    
+    @staticmethod
+    def prefix_suffix_match(s1: str, s2: str, k: int = 3) -> dict:
+        """Check prefix and suffix matches"""
+        if not s1 or not s2:
+            return {'prefix_match': 0, 'suffix_match': 0}
+        
+        s1_lower = s1.lower()
+        s2_lower = s2.lower()
+        
+        # Prefix match
+        prefix_len = 0
+        for i in range(min(len(s1_lower), len(s2_lower), k)):
+            if s1_lower[i] == s2_lower[i]:
+                prefix_len += 1
+            else:
+                break
+        
+        # Suffix match
+        suffix_len = 0
+        for i in range(1, min(len(s1_lower), len(s2_lower), k) + 1):
+            if s1_lower[-i] == s2_lower[-i]:
+                suffix_len += 1
+            else:
+                break
+        
+        return {
+            'prefix_match': prefix_len / k,
+            'suffix_match': suffix_len / k
+        }
+    
+    def extract_advanced_features(self,
+                                  row1: pd.Series,
+                                  row2: pd.Series) -> Dict[str, float]:
+        """
+        Extract advanced features including all base features
+        """
+        # Get base features first
+        features = self.extract_pair_features(row1, row2)
+        
+        name1 = row1.get('name_normalized', '')
+        name2 = row2.get('name_normalized', '')
+        addr1 = row1.get('address_normalized', '')
+        addr2 = row2.get('address_normalized', '')
+        
+        # N-gram features
+        features['name_bigram_sim'] = self.n_gram_similarity(name1, name2, n=2)
+        features['name_trigram_sim'] = self.n_gram_similarity(name1, name2, n=3)
+        features['addr_bigram_sim'] = self.n_gram_similarity(addr1, addr2, n=2)
+        features['addr_trigram_sim'] = self.n_gram_similarity(addr1, addr2, n=3)
+        
+        # Longest common substring
+        features['name_lcs_ratio'] = self.longest_common_substring_ratio(name1, name2)
+        features['addr_lcs_ratio'] = self.longest_common_substring_ratio(addr1, addr2)
+        
+        # Word order
+        features['name_word_order'] = self.word_order_similarity(name1, name2)
+        features['addr_word_order'] = self.word_order_similarity(addr1, addr2)
+        
+        # Prefix/suffix matches
+        name_prefix_suffix = self.prefix_suffix_match(name1, name2)
+        features['name_prefix_match'] = name_prefix_suffix['prefix_match']
+        features['name_suffix_match'] = name_prefix_suffix['suffix_match']
+        
+        addr_prefix_suffix = self.prefix_suffix_match(addr1, addr2)
+        features['addr_prefix_match'] = addr_prefix_suffix['prefix_match']
+        features['addr_suffix_match'] = addr_prefix_suffix['suffix_match']
+        
+        # Token set features
+        name_tokens1 = set(name1.split())
+        name_tokens2 = set(name2.split())
+        addr_tokens1 = set(addr1.split())
+        addr_tokens2 = set(addr2.split())
+        
+        features['name_token_overlap_ratio'] = (
+            len(name_tokens1 & name_tokens2) / max(len(name_tokens1), len(name_tokens2))
+            if name_tokens1 and name_tokens2 else 0.0
+        )
+        
+        features['addr_token_overlap_ratio'] = (
+            len(addr_tokens1 & addr_tokens2) / max(len(addr_tokens1), len(addr_tokens2))
+            if addr_tokens1 and addr_tokens2 else 0.0
+        )
+        
+        # Combined score features
+        features['max_name_similarity'] = max([
+            features['name_levenshtein'],
+            features['name_jaro_winkler'],
+            features['name_fuzzy_ratio'],
+            features['name_token_jaccard']
+        ])
+        
+        features['max_addr_similarity'] = max([
+            features['addr_levenshtein'],
+            features['addr_jaro_winkler'],
+            features['addr_fuzzy_ratio'],
+            features['addr_token_jaccard']
+        ])
+        
+        features['min_name_similarity'] = min([
+            features['name_levenshtein'],
+            features['name_jaro_winkler'],
+            features['name_fuzzy_ratio'],
+            features['name_token_jaccard']
+        ])
+        
+        features['min_addr_similarity'] = min([
+            features['addr_levenshtein'],
+            features['addr_jaro_winkler'],
+            features['addr_fuzzy_ratio'],
+            features['addr_token_jaccard']
+        ])
+        
+        return features

@@ -77,8 +77,8 @@ class EntityMatchingModel:
         for _, row in ground_truth_df.iterrows():
             s1_id = row['source1_entity_id']
             matched_ids = row['matched_entity_ids']
-            if matched_ids and matched_ids != '':
-                gt_map[s1_id] = set(matched_ids.split(','))
+            if matched_ids and not pd.isna(matched_ids) and matched_ids != '':
+                gt_map[s1_id] = set(str(matched_ids).split(','))
             else:
                 gt_map[s1_id] = set()
         

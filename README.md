@@ -1,4 +1,6 @@
-# Amazon ML Challenge 2026 - Business Entity Resolution
+# EntityMatch - Amazon ML Challenge 2026
+
+**Business Entity Resolution at Scale**
 
 ## Problem Overview
 
@@ -35,7 +37,7 @@ The solution follows a **four-stage entity resolution pipeline**:
 ## Project Structure
 
 ```
-entity-resolution-challenge/
+entitymatch-ml-challenge/
 ├── data/                          # Data directory (symlink to dataset)
 │   ├── train/
 │   │   ├── train_source1.tsv

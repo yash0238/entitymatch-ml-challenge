@@ -121,7 +121,7 @@ def load_all_sources(data_dir: str, split: str = 'train') -> Dict[str, pd.DataFr
     sources = {}
     
     for i in [1, 2, 3]:
-        filepath = data_path / f"{split}_source{i}.tsv"
+        filepath = data_path / split / f"{split}_source{i}.tsv"  # Fixed path with split subdirectory
         sources[f'source{i}'] = load_tsv(str(filepath))
     
     logger.info(f"Loaded all {split} sources")

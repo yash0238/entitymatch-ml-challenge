@@ -12,7 +12,7 @@ This guide will get you up and running with the Amazon ML Challenge 2026 Entity 
 ## Step 1: Navigate to Project
 
 ```powershell
-cd "c:\Users\DELL\Desktop\Amazon ML\entity-resolution-challenge"
+cd "c:\Users\DELL\Desktop\Amazon ML\entitymatch-ml-challenge"
 ```
 
 ## Step 2: Create Data Link
@@ -116,7 +116,7 @@ python ..\dataset\student_resource\utils\validate_submission.py `
 ## Project Structure
 
 ```
-entity-resolution-challenge/
+entitymatch-ml-challenge/
 ├── data/                    # Symlink to dataset (create this!)
 ├── src/                     # Source code
 │   ├── pipeline.py          # Main entry point
