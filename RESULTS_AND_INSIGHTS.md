@@ -1,5 +1,7 @@
 # EntityMatch - Results & Insights
 
+> **Audit notice:** The dataset profiling below reflects observed data. The model scores, blocking recall, and sample-pipeline metrics later in this document are unverified and must not be treated as results. An ID-based join of the saved `features.parquet` found only 2 true candidate pairs among 50,000 rows across 3,378 Source 1 entities; the earlier sample did not align its independently ordered Source 1 and ground-truth rows. No reliable macro F0.5 score has been measured yet.
+
 ## 📊 Data Profiling Results
 
 ### Dataset Overview

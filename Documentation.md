@@ -10,7 +10,7 @@
 
 This solution implements a **four-stage entity resolution pipeline** combining multi-view blocking strategies with supervised machine learning for business entity matching across noisy data sources. The approach achieves high recall through diverse blocking techniques while maintaining precision through conservative threshold optimization for the F0.5 metric.
 
-**Key Innovation:** Multi-view blocking with phonetic encoding, token-based indexing, and TF-IDF similarity ensures 95%+ candidate recall, while XGBoost classifier with F0.5-optimized threshold prevents false merges.
+**Key Innovation:** The prototype combines phonetic and token-based blocking with a supervised pair matcher. Candidate recall and model performance have not yet been measured on an entity-aligned holdout; the previous reported scores were invalidated by the sample audit.
 
 ---
 

@@ -106,7 +106,15 @@ class EntityMatchingModel:
         
         return X, y
     
-    def train(self, X: pd.DataFrame, y: pd.Series, validation_split: float = 0.2):
+    def train(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        validation_split: float = 0.2,
+        groups=None,
+        entity_ids=None,
+        ground_truth_df: pd.DataFrame = None,
+    ):
         """
         Train the matching model
         
@@ -117,10 +125,36 @@ class EntityMatchingModel:
         """
         logger.info(f"Training {self.model_type} model...")
         
-        # Split data
-        X_train, X_val, y_train, y_val = train_test_split(
-            X, y, test_size=validation_split, random_state=42, stratify=y
+        if groups is None or entity_ids is None or ground_truth_df is None:
+            raise ValueError(
+                "Entity-level validation requires pair groups, all Source 1 IDs, "
+                "and the ground-truth dataframe"
+            )
+
+        groups = np.asarray(groups)
+        entity_ids = np.asarray(entity_ids)
+        truth_counts = {
+            row.source1_entity_id: (
+                0 if pd.isna(row.matched_entity_ids) or not str(row.matched_entity_ids).strip()
+                else len(str(row.matched_entity_ids).split(','))
+            )
+            for row in ground_truth_df.itertuples(index=False)
+        }
+        entity_has_matches = np.asarray([truth_counts.get(entity_id, 0) > 0 for entity_id in entity_ids])
+        train_entities, validation_entities = train_test_split(
+            entity_ids,
+            test_size=validation_split,
+            random_state=42,
+            stratify=entity_has_matches,
         )
+        train_mask = np.isin(groups, train_entities)
+        validation_mask = np.isin(groups, validation_entities)
+        if not train_mask.any() or not validation_mask.any():
+            raise ValueError("Entity split produced an empty train or validation candidate set")
+
+        X_train, y_train = X.iloc[train_mask], np.asarray(y)[train_mask]
+        X_val, y_val = X.iloc[validation_mask], np.asarray(y)[validation_mask]
+        validation_groups = groups[validation_mask]
         
         # Initialize and train
         self._init_model()
@@ -129,20 +163,17 @@ class EntityMatchingModel:
         # Evaluate on validation
         y_val_pred_proba = self.model.predict_proba(X_val)[:, 1]
         
-        # Find optimal threshold for F0.5
-        self.threshold = self._optimize_threshold(y_val, y_val_pred_proba)
-        
-        y_val_pred = (y_val_pred_proba >= self.threshold).astype(int)
-        
-        precision = precision_score(y_val, y_val_pred)
-        recall = recall_score(y_val, y_val_pred)
-        f05 = calculate_f05_score(precision, recall)
+        f05, self.threshold = self._optimize_entity_threshold(
+            y_val,
+            y_val_pred_proba,
+            validation_groups,
+            validation_entities,
+            truth_counts,
+        )
         
         logger.info(f"\nValidation Results:")
         logger.info(f"  Threshold: {self.threshold:.3f}")
-        logger.info(f"  Precision: {precision:.4f}")
-        logger.info(f"  Recall: {recall:.4f}")
-        logger.info(f"  F0.5 Score: {f05:.4f}")
+        logger.info(f"  Macro entity F0.5: {f05:.4f}")
         
         # Feature importance
         if hasattr(self.model, 'feature_importances_'):
@@ -155,38 +186,56 @@ class EntityMatchingModel:
             for _, row in importance_df.head(10).iterrows():
                 logger.info(f"  {row['feature']}: {row['importance']:.4f}")
     
-    def _optimize_threshold(self, y_true: pd.Series, y_pred_proba: np.ndarray) -> float:
+    def _optimize_entity_threshold(
+        self,
+        y_true: np.ndarray,
+        y_pred_proba: np.ndarray,
+        group_ids: np.ndarray,
+        entity_ids: np.ndarray,
+        truth_counts: dict,
+    ):
         """
-        Find optimal threshold for F0.5 score
+        Tune the threshold against macro F0.5 over Source 1 entities.
         
         Args:
-            y_true: True labels
+            y_true: True pair labels
             y_pred_proba: Predicted probabilities
-            
-        Returns:
-            Optimal threshold
+            group_ids: Source 1 ID for each candidate pair
+            entity_ids: Every Source 1 ID in the validation fold
+            truth_counts: Number of true matches for each Source 1 ID
         """
-        logger.info("Optimizing threshold for F0.5...")
-        
-        best_threshold = 0.5
-        best_f05 = 0.0
-        
-        for threshold in np.arange(0.3, 0.9, 0.05):
-            y_pred = (y_pred_proba >= threshold).astype(int)
-            
-            if y_pred.sum() == 0:
-                continue
-            
-            precision = precision_score(y_true, y_pred, zero_division=0)
-            recall = recall_score(y_true, y_pred, zero_division=0)
-            f05 = calculate_f05_score(precision, recall)
-            
-            if f05 > best_f05:
-                best_f05 = f05
-                best_threshold = threshold
-        
-        logger.info(f"Best threshold: {best_threshold:.3f} with F0.5: {best_f05:.4f}")
-        return best_threshold
+        entity_index = {entity_id: index for index, entity_id in enumerate(entity_ids)}
+        group_indices = np.fromiter(
+            (entity_index[group_id] for group_id in group_ids),
+            dtype=np.int64,
+            count=len(group_ids),
+        )
+        true_counts = np.asarray([truth_counts.get(entity_id, 0) for entity_id in entity_ids])
+        thresholds = np.unique(np.quantile(y_pred_proba, np.linspace(0.0, 1.0, 101)))
+
+        best_score = -1.0
+        best_threshold = 1.0
+        for threshold in thresholds:
+            selected = y_pred_proba >= threshold
+            predicted_counts = np.bincount(group_indices[selected], minlength=len(entity_ids))
+            true_positive_counts = np.bincount(
+                group_indices[selected], weights=y_true[selected], minlength=len(entity_ids)
+            )
+            denominator = 0.25 * predicted_counts + true_counts
+            entity_scores = np.divide(
+                1.25 * true_positive_counts,
+                denominator,
+                out=np.zeros(len(entity_ids), dtype=float),
+                where=denominator > 0,
+            )
+            entity_scores[(predicted_counts == 0) & (true_counts == 0)] = 1.0
+            score = float(entity_scores.mean())
+            if score > best_score or (np.isclose(score, best_score) and threshold > best_threshold):
+                best_score = score
+                best_threshold = float(threshold)
+
+        logger.info("Best entity-level threshold: %.4f (macro F0.5: %.4f)", best_threshold, best_score)
+        return best_score, best_threshold
     
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """

@@ -95,7 +95,14 @@ class EntityResolutionPipeline:
         
         # Step 5: Train model
         logger.info("\n[5/5] Training matching model...")
-        self.model.train(X, y, validation_split=0.2)
+        self.model.train(
+            X,
+            y,
+            validation_split=0.2,
+            groups=features_df['source1_entity_id'],
+            entity_ids=s1_df['entity_id'],
+            ground_truth_df=ground_truth,
+        )
         
         # Save model
         model_path = self.model_dir / 'matching_model.joblib'
@@ -198,11 +205,11 @@ def main():
     parser = argparse.ArgumentParser(description='Entity Resolution Pipeline')
     parser.add_argument('--mode', choices=['train', 'predict', 'both'], 
                        default='both', help='Pipeline mode')
-    parser.add_argument('--data-dir', default='../data', 
+    parser.add_argument('--data-dir', default='data',
                        help='Data directory')
-    parser.add_argument('--output-dir', default='../output', 
+    parser.add_argument('--output-dir', default='output',
                        help='Output directory')
-    parser.add_argument('--model-dir', default='../models', 
+    parser.add_argument('--model-dir', default='models',
                        help='Model directory')
     
     args = parser.parse_args()

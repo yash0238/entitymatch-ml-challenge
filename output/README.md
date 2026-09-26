@@ -1,5 +1,7 @@
 # Output Directory
 
+> **Audit notice:** Existing output artifacts are from an unvalidated sample run and are not a complete submission. The advertised candidate counts and model scores are unverified; regenerate candidates and predictions with an entity-aligned evaluation before submitting.
+
 This directory contains prediction outputs for submission.
 
 ## Files

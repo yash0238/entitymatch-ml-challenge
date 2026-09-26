@@ -1,5 +1,7 @@
 # Models Directory
 
+> **Audit notice:** The listed ensemble/XGBoost performance figures are unverified, and those model files are not present in this directory. `sample_model.joblib` is not evidence of challenge performance; retrain and evaluate with the entity-level holdout before using any model for submission.
+
 This directory contains trained machine learning models.
 
 ## Saved Models

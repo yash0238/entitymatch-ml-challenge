@@ -2,6 +2,8 @@
 Text preprocessing and normalization for business names and addresses
 """
 import re
+import regex as unicode_re
+import unicodedata
 import pandas as pd
 from typing import Dict, Optional
 import logging
@@ -26,6 +28,7 @@ class TextNormalizer:
         r'\b(llp|l\.l\.p\.?)\b': 'llp',
         r'\b(limited liability company)\b': 'llc',
         r'\b(limited liability partnership)\b': 'llp',
+        r'\bलिमिटेड\b': 'ltd',
     }
     
     # Address component abbreviations
@@ -63,13 +66,13 @@ class TextNormalizer:
         if pd.isna(text):
             return ''
         
-        text = str(text).lower().strip()
+        text = unicodedata.normalize('NFKC', str(text)).lower().strip()
         
         # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text)
         
         # Remove special characters but keep alphanumeric and common punctuation
-        text = re.sub(r'[^a-z0-9\s\-\.,&]', '', text)
+        text = unicode_re.sub(r'[^\p{L}\p{N}\p{M}\s\-.,&]', '', text)
         
         return text.strip()
     
@@ -151,7 +154,7 @@ class TextNormalizer:
         """
         if pd.isna(text):
             return []
-        return re.findall(r'\b\d+\b', str(text))
+        return re.findall(r'\d+', str(text))
 
 
 def preprocess_dataframe(df: pd.DataFrame) -> pd.DataFrame:

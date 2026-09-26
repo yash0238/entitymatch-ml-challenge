@@ -230,6 +230,7 @@ class BlockingStrategy:
             DataFrame with candidate pairs
         """
         logger.info(f"Generating candidates for {split} split...")
+        self.candidate_pairs = defaultdict(set)
         
         # Load and preprocess data
         sources = load_all_sources(data_dir, split)
